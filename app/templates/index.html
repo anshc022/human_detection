@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Dashboard</title>
+    <style>
+        /* Reset some default styles */
+        body, h1, h2, p {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        header {
+            background-color: #292929;
+            color: #e0e0e0;
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 2px solid #444;
+        }
+
+        header nav ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        header nav ul li {
+            display: inline;
+            margin: 0 1rem;
+        }
+
+        header nav ul li a {
+            color: #e0e0e0;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        main {
+            display: flex;
+            padding: 2rem;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .video-feed {
+            flex: 2;
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .video-feed h2 {
+            color: #e0e0e0;
+            margin-bottom: 1rem;
+        }
+
+        .video-container {
+            position: relative;
+            width: 480px;
+            height: 640px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .video-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .stats, .movement-detection, .head-bounding-box {
+            flex: 1;
+            background: #292929;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .stats h2, .movement-detection h2, .head-bounding-box h2 {
+            color: #e0e0e0;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            background-color: #292929;
+            color: #e0e0e0;
+            text-align: center;
+            padding: 1rem;
+            position: fixed;
+            width: 100%;
+            bottom: 0;
+            border-top: 2px solid #444;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+            }
+
+            .video-feed, .stats, .movement-detection, .head-bounding-box {
+                flex: none;
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+
+            .video-container {
+                width: 100%;
+                height: auto;
+                max-width: 480px; /* Adjust if needed */
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>CCTV Dashboard</h1>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Settings</a></li>
+                <li><a href="#">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="video-feed">
+            <h2>Live Video Feed</h2>
+            <div class="video-container">
+                <img src="{{ url_for('video_feed') }}" alt="Live Video Feed" id="video">
+            </div>
+        </section>
+
+        <section class="stats">
+            <h2>Statistics</h2>
+            <canvas id="statsChart"></canvas>
+        </section>
+
+        <section class="movement-detection">
+            <h2>Movement Detection</h2>
+            <div id="movementDetection"></div>
+        </section>
+
+        <section class="head-bounding-box">
+            <h2>Head Bounding Box</h2>
+            <div id="headBoundingBox"></div>
+        </section>
+    </main>
+
+    <footer>
+        &copy; 2024 CCTV Dashboard
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup Chart.js chart
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            const statsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Person Count', 'Male Count', 'Female Count'],
+                    datasets: [{
+                        label: 'Live Statistics',
+                        data: [0, 0, 0],  // Initial data
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(255, 159, 64, 0.5)',
+                            'rgba(255, 99, 132, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#e0e0e0'
+                            },
+                            grid: {
+                                color: '#444'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#e0e0e0'
+                            },
+                            grid: {
+                                color: '#444'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e0e0e0'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Function to fetch and update statistics
+            function updateDashboard() {
+                fetch('/get_dashboard_data')  // Endpoint to get data
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update chart data
+                        statsChart.data.datasets[0].data = [data.person_count, data.gender_count.Male, data.gender_count.Female];
+                        statsChart.update();
+
+                        // Update movement detection
+                        document.getElementById('movementDetection').innerText = `Movement Detected: ${data.movement_detected}`;
+
+                        // Update head bounding box
+                        document.getElementById('headBoundingBox').innerText = `Head Bounding Box: ${data.head_bounding_box}`;
+                    })
+                    .catch(error => console.error('Error fetching data:', error));
+            }
+
+            // Update dashboard every 5 seconds
+            setInterval(updateDashboard, 5000);
+        });
+    </script>
+</body>
+</html>
